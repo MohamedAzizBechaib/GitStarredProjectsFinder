@@ -1,0 +1,1333 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>StarScope — GitHub Trending Explorer</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                --bg: #0a0a0f;
+                --surface: #111118;
+                --surface-2: #18181f;
+                --surface-3: #1f1f28;
+                --border: rgba(255, 255, 255, 0.07);
+                --border-hover: rgba(255, 255, 255, 0.14);
+                --text: #f0f0f8;
+                --text-2: #8888a8;
+                --text-3: #555570;
+                --accent: #7c6af7;
+                --accent-glow: rgba(124, 106, 247, 0.25);
+                --accent-2: #f06595;
+                --accent-3: #38d9a9;
+                --gold: #ffd43b;
+                --font-display: "DM Serif Display", Georgia, serif;
+                --font-ui: "Syne", system-ui, sans-serif;
+                --font-mono: "DM Mono", monospace;
+            }
+
+            html {
+                scroll-behavior: smooth;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--text);
+                font-family: var(--font-ui);
+                min-height: 100vh;
+                overflow-x: hidden;
+            }
+
+            /* ── NOISE TEXTURE ── */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+                pointer-events: none;
+                z-index: 0;
+            }
+
+            /* ── HEADER ── */
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                background: rgba(10, 10, 15, 0.85);
+                backdrop-filter: blur(20px);
+                border-bottom: 1px solid var(--border);
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                height: 60px;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                text-decoration: none;
+            }
+
+            .logo-icon {
+                width: 32px;
+                height: 32px;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent),
+                    var(--accent-2)
+                );
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                flex-shrink: 0;
+            }
+
+            .logo-text {
+                font-family: var(--font-ui);
+                font-size: 18px;
+                font-weight: 800;
+                color: var(--text);
+                letter-spacing: -0.5px;
+            }
+
+            .logo-text span {
+                color: var(--accent);
+            }
+
+            .header-badge {
+                font-family: var(--font-mono);
+                font-size: 11px;
+                color: var(--accent);
+                background: rgba(124, 106, 247, 0.12);
+                border: 1px solid rgba(124, 106, 247, 0.25);
+                border-radius: 4px;
+                padding: 2px 8px;
+            }
+
+            /* ── HERO ── */
+            .hero {
+                position: relative;
+                z-index: 1;
+                padding: 5rem 2rem 3rem;
+                text-align: center;
+                max-width: 720px;
+                margin: 0 auto;
+            }
+
+            .hero-tag {
+                display: inline-block;
+                font-family: var(--font-mono);
+                font-size: 12px;
+                color: var(--accent-3);
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                margin-bottom: 1.5rem;
+                opacity: 0;
+                animation: fadeUp 0.6s 0.1s forwards;
+            }
+
+            .hero h1 {
+                font-family: var(--font-display);
+                font-size: clamp(2.5rem, 6vw, 4rem);
+                line-height: 1.1;
+                color: var(--text);
+                margin-bottom: 1.25rem;
+                opacity: 0;
+                animation: fadeUp 0.6s 0.2s forwards;
+            }
+
+            .hero h1 em {
+                font-style: italic;
+                color: var(--accent);
+            }
+
+            .hero p {
+                font-size: 1rem;
+                color: var(--text-2);
+                line-height: 1.7;
+                max-width: 480px;
+                margin: 0 auto;
+                opacity: 0;
+                animation: fadeUp 0.6s 0.3s forwards;
+            }
+
+            /* ── SEARCH PANEL ── */
+            .search-panel {
+                position: relative;
+                z-index: 1;
+                max-width: 820px;
+                margin: 0 auto;
+                padding: 0 2rem 4rem;
+                opacity: 0;
+                animation: fadeUp 0.6s 0.4s forwards;
+            }
+
+            .panel {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                padding: 2rem;
+            }
+
+            .panel-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--text-3);
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                margin-bottom: 1.5rem;
+            }
+
+            .fields-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .field-group {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .field-group label {
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-2);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            .field-group input[type="date"],
+            .field-group select {
+                background: var(--surface-2);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                color: var(--text);
+                font-family: var(--font-ui);
+                font-size: 14px;
+                padding: 0.6rem 0.8rem;
+                width: 100%;
+                outline: none;
+                transition: border-color 0.2s;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+
+            .field-group input[type="date"]:focus,
+            .field-group select:focus {
+                border-color: var(--accent);
+            }
+
+            .field-group select {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238888a8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 0.8rem center;
+                background-size: 10px;
+                padding-right: 2rem;
+                cursor: pointer;
+            }
+
+            .field-group select option {
+                background: #1f1f28;
+                color: var(--text);
+            }
+
+            /* ── FILTER PILLS ── */
+            .filter-section {
+                margin-bottom: 1.5rem;
+            }
+
+            .filter-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-2);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+            }
+
+            .pills-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .pill {
+                font-family: var(--font-ui);
+                font-size: 12px;
+                font-weight: 600;
+                padding: 5px 12px;
+                border-radius: 20px;
+                border: 1px solid var(--border);
+                background: var(--surface-2);
+                color: var(--text-2);
+                cursor: pointer;
+                transition: all 0.15s;
+                white-space: nowrap;
+            }
+
+            .pill:hover {
+                border-color: var(--border-hover);
+                color: var(--text);
+            }
+
+            .pill.active {
+                background: rgba(124, 106, 247, 0.15);
+                border-color: rgba(124, 106, 247, 0.5);
+                color: var(--accent);
+            }
+
+            /* ── SUBMIT ── */
+            .panel-footer {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+            }
+
+            .stars-filter {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 13px;
+                color: var(--text-2);
+            }
+
+            .stars-filter input[type="number"] {
+                width: 100px;
+                background: var(--surface-2);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                color: var(--text);
+                font-family: var(--font-mono);
+                font-size: 13px;
+                padding: 0.5rem 0.7rem;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+
+            .stars-filter input[type="number"]:focus {
+                border-color: var(--accent);
+            }
+
+            .btn-search {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: var(--accent);
+                color: #fff;
+                border: none;
+                border-radius: 10px;
+                font-family: var(--font-ui);
+                font-size: 14px;
+                font-weight: 700;
+                padding: 0.65rem 1.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.3px;
+                white-space: nowrap;
+            }
+
+            .btn-search:hover {
+                background: #9580ff;
+                transform: translateY(-1px);
+            }
+            .btn-search:active {
+                transform: translateY(0);
+            }
+            .btn-search:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            /* ── SPINNER ── */
+            .spinner {
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-top-color: #fff;
+                border-radius: 50%;
+                animation: spin 0.7s linear infinite;
+                display: none;
+            }
+
+            .btn-search.loading .spinner {
+                display: block;
+            }
+            .btn-search.loading .btn-icon {
+                display: none;
+            }
+
+            /* ── STATS BAR ── */
+            .stats-bar {
+                position: relative;
+                z-index: 1;
+                max-width: 820px;
+                margin: 0 auto 2rem;
+                padding: 0 2rem;
+                display: none;
+                animation: fadeUp 0.4s forwards;
+            }
+
+            .stats-inner {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 1rem;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 1rem 1.25rem;
+            }
+
+            .stat-item {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+
+            .stat-value {
+                font-family: var(--font-mono);
+                font-size: 22px;
+                font-weight: 500;
+                color: var(--text);
+            }
+
+            .stat-value.accent {
+                color: var(--accent);
+            }
+            .stat-value.gold {
+                color: var(--gold);
+            }
+            .stat-value.green {
+                color: var(--accent-3);
+            }
+
+            .stat-label {
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--text-3);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            .stat-divider {
+                width: 1px;
+                height: 36px;
+                background: var(--border);
+                flex-shrink: 0;
+            }
+
+            /* ── SORT BAR ── */
+            .sort-bar {
+                position: relative;
+                z-index: 1;
+                max-width: 820px;
+                margin: 0 auto 1.5rem;
+                padding: 0 2rem;
+                display: none;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .sort-bar.visible {
+                display: flex;
+            }
+
+            .sort-label {
+                font-size: 13px;
+                color: var(--text-2);
+            }
+
+            .sort-pills {
+                display: flex;
+                gap: 6px;
+            }
+
+            .sort-pill {
+                font-size: 12px;
+                font-weight: 600;
+                padding: 4px 10px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                background: transparent;
+                color: var(--text-3);
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+
+            .sort-pill:hover {
+                color: var(--text-2);
+                border-color: var(--border-hover);
+            }
+            .sort-pill.active {
+                background: var(--surface-3);
+                color: var(--text);
+                border-color: var(--border-hover);
+            }
+
+            /* ── RESULTS GRID ── */
+            .results-section {
+                position: relative;
+                z-index: 1;
+                max-width: 820px;
+                margin: 0 auto;
+                padding: 0 2rem 4rem;
+            }
+
+            .results-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+                gap: 1rem;
+            }
+
+            /* ── CARD ── */
+            .repo-card {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 1.25rem;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                transition:
+                    border-color 0.2s,
+                    transform 0.2s;
+                animation: fadeIn 0.35s forwards;
+                opacity: 0;
+            }
+
+            .repo-card:hover {
+                border-color: var(--border-hover);
+                transform: translateY(-2px);
+            }
+
+            .card-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
+            .card-meta {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .avatar {
+                width: 34px;
+                height: 34px;
+                border-radius: 8px;
+                background: var(--surface-3);
+                border: 1px solid var(--border);
+                flex-shrink: 0;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                font-weight: 700;
+                color: var(--accent);
+            }
+
+            .avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .repo-name-wrap {
+                min-width: 0;
+            }
+
+            .repo-owner {
+                font-size: 11px;
+                color: var(--text-3);
+                font-family: var(--font-mono);
+                margin-bottom: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .repo-name {
+                font-size: 15px;
+                font-weight: 700;
+                color: var(--text);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .star-badge {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                background: rgba(255, 212, 59, 0.1);
+                border: 1px solid rgba(255, 212, 59, 0.2);
+                border-radius: 8px;
+                padding: 4px 10px;
+                font-family: var(--font-mono);
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--gold);
+                flex-shrink: 0;
+                white-space: nowrap;
+            }
+
+            .description {
+                font-size: 13px;
+                color: var(--text-2);
+                line-height: 1.6;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+
+            .card-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .tag {
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--accent);
+                background: rgba(124, 106, 247, 0.1);
+                border: 1px solid rgba(124, 106, 247, 0.2);
+                border-radius: 4px;
+                padding: 2px 7px;
+                font-family: var(--font-mono);
+            }
+
+            .card-footer {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                margin-top: 4px;
+                border-top: 1px solid var(--border);
+                padding-top: 10px;
+            }
+
+            .footer-stats {
+                display: flex;
+                gap: 14px;
+            }
+
+            .footer-stat {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 12px;
+                color: var(--text-3);
+                font-family: var(--font-mono);
+            }
+
+            .footer-stat svg {
+                opacity: 0.5;
+            }
+
+            .lang-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--accent-3);
+                flex-shrink: 0;
+            }
+
+            .btn-view {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                font-family: var(--font-ui);
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--accent);
+                background: rgba(124, 106, 247, 0.1);
+                border: 1px solid rgba(124, 106, 247, 0.25);
+                border-radius: 6px;
+                padding: 5px 10px;
+                text-decoration: none;
+                transition: all 0.15s;
+                white-space: nowrap;
+            }
+
+            .btn-view:hover {
+                background: rgba(124, 106, 247, 0.2);
+                border-color: rgba(124, 106, 247, 0.5);
+            }
+
+            /* ── RANK BADGE ── */
+            .rank-badge {
+                font-family: var(--font-mono);
+                font-size: 10px;
+                font-weight: 500;
+                color: var(--text-3);
+                width: 22px;
+                height: 22px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .rank-badge.top1 {
+                background: rgba(255, 212, 59, 0.15);
+                border-color: rgba(255, 212, 59, 0.4);
+                color: var(--gold);
+            }
+            .rank-badge.top2 {
+                background: rgba(192, 192, 200, 0.12);
+                border-color: rgba(192, 192, 200, 0.3);
+                color: #c0c0c8;
+            }
+            .rank-badge.top3 {
+                background: rgba(200, 130, 80, 0.12);
+                border-color: rgba(200, 130, 80, 0.3);
+                color: #c88250;
+            }
+
+            /* ── EMPTY STATE ── */
+            .empty-state {
+                text-align: center;
+                padding: 4rem 2rem;
+                color: var(--text-3);
+                display: none;
+            }
+
+            .empty-icon {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
+            .empty-state h3 {
+                font-size: 1.1rem;
+                color: var(--text-2);
+                margin-bottom: 0.5rem;
+            }
+            .empty-state p {
+                font-size: 14px;
+            }
+
+            /* ── ERROR STATE ── */
+            .error-bar {
+                max-width: 820px;
+                margin: 0 auto 1.5rem;
+                padding: 0 2rem;
+                display: none;
+            }
+
+            .error-inner {
+                background: rgba(226, 75, 74, 0.1);
+                border: 1px solid rgba(226, 75, 74, 0.25);
+                border-radius: 10px;
+                padding: 0.75rem 1rem;
+                font-size: 13px;
+                color: #f09595;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            /* ── FOOTER ── */
+            footer {
+                position: relative;
+                z-index: 1;
+                border-top: 1px solid var(--border);
+                padding: 1.5rem 2rem;
+                text-align: center;
+                font-size: 12px;
+                color: var(--text-3);
+            }
+
+            footer a {
+                color: var(--accent);
+                text-decoration: none;
+            }
+
+            /* ── ANIMATIONS ── */
+            @keyframes fadeUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.98);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* ── RESPONSIVE ── */
+            @media (max-width: 640px) {
+                .fields-row {
+                    grid-template-columns: 1fr 1fr;
+                }
+                .panel-footer {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .btn-search {
+                    justify-content: center;
+                }
+                .results-grid {
+                    grid-template-columns: 1fr;
+                }
+                header {
+                    padding: 0 1rem;
+                }
+                .hero {
+                    padding: 3rem 1rem 2rem;
+                }
+                .search-panel,
+                .results-section {
+                    padding-left: 1rem;
+                    padding-right: 1rem;
+                }
+            }
+
+            @media (max-width: 420px) {
+                .fields-row {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            /* ── SCROLLBAR ── */
+            ::-webkit-scrollbar {
+                width: 6px;
+            }
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: var(--surface-3);
+                border-radius: 3px;
+            }
+
+            /* Date input styling fix */
+            input[type="date"]::-webkit-calendar-picker-indicator {
+                filter: invert(0.5);
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <a href="#" class="logo">
+                <div class="logo-icon">✦</div>
+                <span class="logo-text">Star<span>Scope</span></span>
+            </a>
+            <span class="header-badge">GitHub Explorer</span>
+        </header>
+
+        <section class="hero">
+            <span class="hero-tag">Discover · Explore · Trend</span>
+            <h1>Find the <em>most starred</em> repos of any era</h1>
+            <p>
+                Pick a date range, filter by language or topic, and surface the
+                repositories the community loved most — ranked by star count.
+            </p>
+        </section>
+
+        <section class="search-panel">
+            <div class="panel">
+                <p class="panel-title">Search parameters</p>
+
+                <div class="fields-row">
+                    <div class="field-group">
+                        <label for="start-date">From date</label>
+                        <input type="date" id="start-date" />
+                    </div>
+                    <div class="field-group">
+                        <label for="end-date">To date</label>
+                        <input type="date" id="end-date" />
+                    </div>
+                    <div class="field-group">
+                        <label for="lang-select">Language</label>
+                        <select id="lang-select">
+                            <option value="">Any language</option>
+                            <option value="Python">Python</option>
+                            <option value="JavaScript">JavaScript</option>
+                            <option value="TypeScript">TypeScript</option>
+                            <option value="Rust">Rust</option>
+                            <option value="Go">Go</option>
+                            <option value="Java">Java</option>
+                            <option value="C++">C++</option>
+                            <option value="C">C</option>
+                            <option value="Swift">Swift</option>
+                            <option value="Kotlin">Kotlin</option>
+                            <option value="Ruby">Ruby</option>
+                            <option value="PHP">PHP</option>
+                            <option value="Dart">Dart</option>
+                            <option value="Shell">Shell</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <p class="filter-label">Quick presets</p>
+                    <div class="pills-row" id="presets">
+                        <button class="pill" data-preset="thisweek">
+                            This week
+                        </button>
+                        <button class="pill" data-preset="thismonth">
+                            This month
+                        </button>
+                        <button class="pill" data-preset="thisyear">
+                            This year
+                        </button>
+                        <button class="pill" data-preset="2023">2023</button>
+                        <button class="pill" data-preset="2022">2022</button>
+                        <button class="pill" data-preset="2020">2020</button>
+                        <button class="pill" data-preset="2018">2018</button>
+                        <button class="pill" data-preset="ai-boom">
+                            AI boom (2022–2024)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel-footer">
+                    <div class="stars-filter">
+                        <span>Min. stars</span>
+                        <input
+                            type="number"
+                            id="min-stars"
+                            value="1000"
+                            min="0"
+                            step="100"
+                        />
+                    </div>
+                    <button
+                        class="btn-search"
+                        id="search-btn"
+                        onclick="runSearch()"
+                    >
+                        <span class="btn-icon">⊹ Search repositories</span>
+                        <div class="spinner"></div>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div class="error-bar" id="error-bar">
+            <div class="error-inner">
+                <span>⚠</span>
+                <span id="error-msg"
+                    >Something went wrong. Please try again.</span
+                >
+            </div>
+        </div>
+
+        <div class="stats-bar" id="stats-bar">
+            <div class="stats-inner">
+                <div class="stat-item">
+                    <span class="stat-value accent" id="stat-count">0</span>
+                    <span class="stat-label">Repos shown</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value gold" id="stat-top-stars">—</span>
+                    <span class="stat-label">Top repo stars</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value green" id="stat-avg-stars">—</span>
+                    <span class="stat-label">Avg. stars</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value" id="stat-top-lang">—</span>
+                    <span class="stat-label">Top language</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sort-bar" id="sort-bar">
+            <span class="sort-label">Sort by</span>
+            <div class="sort-pills">
+                <button class="sort-pill active" data-sort="stars">
+                    Stars ↓
+                </button>
+                <button class="sort-pill" data-sort="forks">Forks</button>
+                <button class="sort-pill" data-sort="name">Name A–Z</button>
+            </div>
+        </div>
+
+        <section class="results-section">
+            <div id="results" class="results-grid"></div>
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">◎</div>
+                <h3>No repositories found</h3>
+                <p>
+                    Try expanding your date range or lowering the minimum star
+                    count.
+                </p>
+            </div>
+        </section>
+
+        <footer>
+            Built with the
+            <a href="https://docs.github.com/en/rest" target="_blank"
+                >GitHub Search API</a
+            >
+            · StarScope v1.0
+        </footer>
+
+        <script>
+            let allRepos = [];
+            let currentSort = "stars";
+
+            const langColors = {
+                Python: "#3572A5",
+                JavaScript: "#f1e05a",
+                TypeScript: "#2b7489",
+                Rust: "#dea584",
+                Go: "#00ADD8",
+                Java: "#b07219",
+                "C++": "#f34b7d",
+                C: "#555",
+                Swift: "#FA7343",
+                Kotlin: "#F18E33",
+                Ruby: "#701516",
+                PHP: "#4F5D95",
+                Dart: "#00B4AB",
+                Shell: "#89e051",
+                HTML: "#e34c26",
+                CSS: "#563d7c",
+                Jupyter: "#DA5B0B",
+                Vue: "#41b883",
+                default: "#8888a8",
+            };
+
+            function fmt(n) {
+                if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+                if (n >= 1000) return (n / 1000).toFixed(1) + "k";
+                return n.toString();
+            }
+
+            function setPreset(preset) {
+                const now = new Date();
+                let start,
+                    end = now.toISOString().split("T")[0];
+                if (preset === "thisweek") {
+                    const d = new Date();
+                    d.setDate(d.getDate() - 7);
+                    start = d.toISOString().split("T")[0];
+                } else if (preset === "thismonth") {
+                    start = new Date(now.getFullYear(), now.getMonth(), 1)
+                        .toISOString()
+                        .split("T")[0];
+                } else if (preset === "thisyear") {
+                    start = `${now.getFullYear()}-01-01`;
+                } else if (preset === "ai-boom") {
+                    start = "2022-01-01";
+                    end = "2024-12-31";
+                } else {
+                    start = `${preset}-01-01`;
+                    end = `${preset}-12-31`;
+                }
+                document.getElementById("start-date").value = start;
+                document.getElementById("end-date").value = end;
+                document
+                    .querySelectorAll("#presets .pill")
+                    .forEach((p) =>
+                        p.classList.toggle(
+                            "active",
+                            p.dataset.preset === preset,
+                        ),
+                    );
+            }
+
+            document.querySelectorAll("#presets .pill").forEach((p) => {
+                p.addEventListener("click", () => setPreset(p.dataset.preset));
+            });
+
+            document.querySelectorAll(".sort-pill").forEach((p) => {
+                p.addEventListener("click", () => {
+                    currentSort = p.dataset.sort;
+                    document
+                        .querySelectorAll(".sort-pill")
+                        .forEach((x) => x.classList.remove("active"));
+                    p.classList.add("active");
+                    renderCards(allRepos);
+                });
+            });
+
+            function buildUrl(startDate, endDate, lang) {
+                let q = `created:${startDate}..${endDate}`;
+                if (lang) q += `+language:${encodeURIComponent(lang)}`;
+                return `https://api.github.com/search/repositories?q=${q}&sort=stars&order=desc&per_page=30`;
+            }
+
+            function getInitials(name) {
+                return name.slice(0, 2).toUpperCase();
+            }
+
+            function rankClass(i) {
+                if (i === 0) return "top1";
+                if (i === 1) return "top2";
+                if (i === 2) return "top3";
+                return "";
+            }
+
+            function renderCards(repos) {
+                const minStars =
+                    parseInt(document.getElementById("min-stars").value) || 0;
+                let sorted = [...repos].filter(
+                    (r) => r.stargazers_count >= minStars,
+                );
+
+                if (currentSort === "stars")
+                    sorted.sort(
+                        (a, b) => b.stargazers_count - a.stargazers_count,
+                    );
+                else if (currentSort === "forks")
+                    sorted.sort((a, b) => b.forks_count - a.forks_count);
+                else if (currentSort === "name")
+                    sorted.sort((a, b) => a.name.localeCompare(b.name));
+
+                const container = document.getElementById("results");
+                const empty = document.getElementById("empty-state");
+                container.innerHTML = "";
+
+                if (sorted.length === 0) {
+                    empty.style.display = "block";
+                    updateStats([]);
+                    return;
+                }
+
+                empty.style.display = "none";
+
+                sorted.forEach((repo, i) => {
+                    const color =
+                        langColors[repo.language] || langColors.default;
+                    const delay = Math.min(i * 50, 400);
+                    const rc = rankClass(i);
+
+                    const card = document.createElement("div");
+                    card.className = "repo-card";
+                    card.style.animationDelay = delay + "ms";
+
+                    const ownerImg = repo.owner?.avatar_url
+                        ? `<img src="${repo.owner.avatar_url}" alt="${repo.owner.login}" loading="lazy" />`
+                        : getInitials(repo.name);
+
+                    const topics = (repo.topics || [])
+                        .slice(0, 3)
+                        .map((t) => `<span class="tag">${t}</span>`)
+                        .join("");
+
+                    card.innerHTML = `
+        <div class="card-header">
+          <div class="card-meta">
+            <div class="avatar">${ownerImg}</div>
+            <div class="repo-name-wrap">
+              <div class="repo-owner">${repo.owner?.login || ""}</div>
+              <div class="repo-name">${repo.name}</div>
+            </div>
+          </div>
+          <div class="rank-badge ${rc}">${i + 1}</div>
+          <div class="star-badge">★ ${fmt(repo.stargazers_count)}</div>
+        </div>
+        ${repo.description ? `<p class="description">${repo.description}</p>` : ""}
+        ${topics ? `<div class="card-tags">${topics}</div>` : ""}
+        <div class="card-footer">
+          <div class="footer-stats">
+            ${
+                repo.language
+                    ? `
+              <span class="footer-stat">
+                <span class="lang-dot" style="background:${color}"></span>
+                ${repo.language}
+              </span>`
+                    : ""
+            }
+            <span class="footer-stat">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5 3.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm0 2.122a2.25 2.25 0 10-1.5 0v.878A2.25 2.25 0 005.75 8.5h1.5v2.128a2.251 2.251 0 101.5 0V8.5h1.5a2.25 2.25 0 002.25-2.25v-.878a2.25 2.25 0 10-1.5 0v.878a.75.75 0 01-.75.75h-4.5A.75.75 0 015 6.25v-.878z"/>
+              </svg>
+              ${fmt(repo.forks_count)}
+            </span>
+            <span class="footer-stat">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 9.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+                <path fill-rule="evenodd" d="M8 0a8 8 0 100 16A8 8 0 008 0zM1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z"/>
+              </svg>
+              ${repo.open_issues_count > 0 ? fmt(repo.open_issues_count) : "0"}
+            </span>
+          </div>
+          <a href="${repo.html_url}" target="_blank" class="btn-view">View ↗</a>
+        </div>
+      `;
+                    container.appendChild(card);
+                });
+
+                updateStats(sorted);
+            }
+
+            function updateStats(repos) {
+                const bar = document.getElementById("stats-bar");
+                if (repos.length === 0) {
+                    bar.style.display = "none";
+                    return;
+                }
+
+                bar.style.display = "block";
+                document.getElementById("stat-count").textContent =
+                    repos.length;
+                document.getElementById("stat-top-stars").textContent = fmt(
+                    repos[0]?.stargazers_count || 0,
+                );
+
+                const avg =
+                    repos.reduce((s, r) => s + r.stargazers_count, 0) /
+                    repos.length;
+                document.getElementById("stat-avg-stars").textContent = fmt(
+                    Math.round(avg),
+                );
+
+                const langMap = {};
+                repos.forEach((r) => {
+                    if (r.language)
+                        langMap[r.language] = (langMap[r.language] || 0) + 1;
+                });
+                const topLang = Object.entries(langMap).sort(
+                    (a, b) => b[1] - a[1],
+                )[0];
+                document.getElementById("stat-top-lang").textContent = topLang
+                    ? topLang[0]
+                    : "—";
+            }
+
+            async function runSearch() {
+                const startDate = document.getElementById("start-date").value;
+                const endDate = document.getElementById("end-date").value;
+                const lang = document.getElementById("lang-select").value;
+
+                if (!startDate || !endDate) {
+                    showError("Please select both a start and end date.");
+                    return;
+                }
+                if (new Date(startDate) > new Date(endDate)) {
+                    showError("Start date must be before the end date.");
+                    return;
+                }
+
+                hideError();
+                const btn = document.getElementById("search-btn");
+                btn.classList.add("loading");
+                btn.disabled = true;
+
+                document.getElementById("results").innerHTML = "";
+                document.getElementById("empty-state").style.display = "none";
+                document.getElementById("stats-bar").style.display = "none";
+                document.getElementById("sort-bar").classList.remove("visible");
+
+                try {
+                    const url = buildUrl(startDate, endDate, lang);
+                    const res = await fetch(url);
+
+                    if (res.status === 403)
+                        throw new Error(
+                            "GitHub API rate limit exceeded. Please wait a minute and try again.",
+                        );
+                    if (!res.ok)
+                        throw new Error(
+                            `GitHub API error (${res.status}). Please try again.`,
+                        );
+
+                    const data = await res.json();
+                    allRepos = data.items || [];
+
+                    renderCards(allRepos);
+
+                    if (allRepos.length > 0) {
+                        document
+                            .getElementById("sort-bar")
+                            .classList.add("visible");
+                        document
+                            .querySelector(".results-section")
+                            .scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                            });
+                    }
+                } catch (err) {
+                    showError(
+                        err.message ||
+                            "Failed to fetch repositories. Check your connection.",
+                    );
+                } finally {
+                    btn.classList.remove("loading");
+                    btn.disabled = false;
+                }
+            }
+
+            function showError(msg) {
+                document.getElementById("error-msg").textContent = msg;
+                document.getElementById("error-bar").style.display = "block";
+            }
+
+            function hideError() {
+                document.getElementById("error-bar").style.display = "none";
+            }
+
+            // Default dates
+            const today = new Date();
+            const monthAgo = new Date();
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            document.getElementById("end-date").value = today
+                .toISOString()
+                .split("T")[0];
+            document.getElementById("start-date").value = monthAgo
+                .toISOString()
+                .split("T")[0];
+        </script>
+    </body>
+</html>
